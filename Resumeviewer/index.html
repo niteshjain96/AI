@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Smart Candidate Screener</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-8">
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">🧠 AI Smart Candidate Screener</h1>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">1. अपनी जॉब रिक्वायरमेंट डालें (Job Requirement):</label>
+                <textarea id="jobRequirement" rows="3" class="w-full p-2 border rounded border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Looking for a MERN Stack Developer with 3+ years experience..."></textarea>
+            </div>
+            
+            <div>
+                <label class="block font-semibold text-gray-700 mb-1">2. उम्मीदवारों के रिज्यूमे पेस्ट करें (Paste Resumes Text):</label>
+                <textarea id="resumes" rows="6" class="w-full p-2 border rounded border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Candidate 1: Amit, email: amit@test.com, 4 years in React...&#10;Candidate 2: Rohan, email: rohan@test.com..."></textarea>
+            </div>
+            
+            <button id="submitBtn" onclick="processResumes()" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded hover:bg-blue-700 transition duration-200">
+                🚀 स्क्रीन करना शुरू करें
+            </button>
+        </div>
+
+        <div id="loader" class="hidden text-center my-6 text-blue-600 font-semibold animate-pulse">
+            ⏳ एआई आपके रिज्यूमे को स्कैन कर रहा है, कृपया थोड़ा इंतजार करें...
+        </div>
+
+        <div id="resultContainer" class="mt-8 hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🎯 स्क्रीनिंग का रिजल्ट:</h2>
+            <div id="resultsList" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <script>
+        async function processResumes() {
+            const jobRequirement = document.getElementById('jobRequirement').value;
+            const resumes = document.getElementById('resumes').value;
+            const submitBtn = document.getElementById('submitBtn');
+            const loader = document.getElementById('loader');
+            const resultContainer = document.getElementById('resultContainer');
+            const resultsList = document.getElementById('resultsList');
+
+            if(!jobRequirement || !resumes) {
+                alert("कृपया दोनों फील्ड्स में डेटा भरें!");
+                return;
+            }
+
+            // UI स्टेट बदलें
+            loader.classList.remove('hidden');
+            resultContainer.classList.add('hidden');
+            submitBtn.disabled = true;
+            resultsList.innerHTML = "";
+
+            try {
+                // बैकएंड एपीआई को कॉल करें
+                const response = await fetch('/api/screen', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jobRequirement, resumes })
+                });
+
+                const data = await response.json();
+                
+                // रिजल्ट को स्क्रीन पर रेंडर करें
+                data.forEach(candidate => {
+                    const isShortlisted = candidate.hrDecision === "SHORTLISTED";
+                    const badgeColor = isShortlisted ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
+                    
+                    const card = `
+                        <div class="p-4 border rounded-lg bg-gray-50 shadow-sm border-l-8 ${isShortlisted ? 'border-green-500' : 'border-red-500'}">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="text-lg font-bold text-gray-900">${candidate.candidateName}</h3>
+                                <span class="px-3 py-1 rounded-full text-xs font-semibold ${badgeColor}">${candidate.hrDecision}</span>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-1">📧 ईमेल: ${candidate.email}</p>
+                            <p class="text-sm text-gray-700 font-medium mb-2">📊 एआई मैच स्कोर: <span class="text-blue-600 font-bold">${candidate.matchScoreOutof10}/10</span></p>
+                            <p class="text-sm text-gray-600 mb-2">🛠️ स्किल्स: ${candidate.extractedSkills.join(', ')}</p>
+                            <p class="text-sm text-gray-500 italic bg-white p-2 rounded border border-gray-200">💡 कारण: ${candidate.shortReason}</p>
+                        </div>
+                    `;
+                    resultsList.innerHTML += card;
+                });
+
+                resultContainer.classList.remove('hidden');
+
+            } catch (error) {
+                alert("कुछ गड़बड़ हो गई, दोबारा कोशिश करें!");
+            } finally {
+                loader.classList.add('hidden');
+                submitBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
